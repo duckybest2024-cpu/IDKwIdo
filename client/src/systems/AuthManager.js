@@ -1,70 +1,87 @@
-import { auth, signInWithGoogle, logout, onAuthStateChanged } from '../config/firebase.js';
-
 const SERVER = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
+const TOKEN_KEY = '234games_token';
 
 class AuthManager {
   constructor() {
-    this.user = null;       // Firebase user
-    this.profile = null;    // DB profile
-    this.token = null;
-    this.listeners = [];
+    this.token   = null;
+    this.profile = null;   // full DB user object (id, username, coins, gems, skins, ...)
+    this._listeners = [];
   }
 
-  init() {
-    return new Promise((resolve) => {
-      onAuthStateChanged(auth, async (firebaseUser) => {
-        if (firebaseUser) {
-          this.user = firebaseUser;
-          this.token = await firebaseUser.getIdToken();
-          await this._syncProfile();
-        } else {
-          this.user = null;
-          this.profile = null;
-          this.token = null;
-        }
-        this._notify();
-        resolve(this.user);
-      });
-    });
-  }
+  // Call once on page load — picks up token from URL ?token= or localStorage
+  async init() {
+    // GitHub OAuth redirect drops ?token= in the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken  = urlParams.get('token');
+    const authError = urlParams.get('auth_error');
 
-  async signIn() {
-    const u = await signInWithGoogle();
-    this.token = await u.getIdToken();
-    await this._syncProfile();
+    if (authError) {
+      console.warn('Auth error:', authError);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    if (urlToken) {
+      this.token = urlToken;
+      localStorage.setItem(TOKEN_KEY, urlToken);
+      // Clean the token out of the URL bar
+      window.history.replaceState({}, '', window.location.pathname);
+    } else {
+      this.token = localStorage.getItem(TOKEN_KEY);
+    }
+
+    if (this.token) {
+      await this._fetchProfile();
+    }
+
     this._notify();
-    return u;
+    return this.profile;
   }
 
-  async signOut() {
-    await logout();
+  signOut() {
+    this.token   = null;
+    this.profile = null;
+    localStorage.removeItem(TOKEN_KEY);
+    this._notify();
+    // Redirect to login screen
+    window.location.reload();
   }
 
-  async _syncProfile() {
+  // Refresh profile data from server
+  async refreshProfile() {
+    await this._fetchProfile();
+    this._notify();
+  }
+
+  async _fetchProfile() {
     try {
-      const res = await fetch(`${SERVER}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+      const res = await fetch(`${SERVER}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${this.token}` },
       });
-      const data = await res.json();
-      this.profile = data.user;
+      if (res.status === 401) {
+        // Token expired or invalid
+        this.token = null;
+        localStorage.removeItem(TOKEN_KEY);
+        return;
+      }
+      this.profile = await res.json();
     } catch (e) {
-      console.warn('Could not sync profile:', e.message);
+      console.warn('Could not reach server, running offline:', e.message);
     }
   }
 
-  async refreshToken() {
-    if (this.user) this.token = await this.user.getIdToken(true);
-    return this.token;
+  authHeader() {
+    return this.token ? { Authorization: `Bearer ${this.token}` } : {};
   }
 
-  onChange(fn) { this.listeners.push(fn); }
-  _notify() { this.listeners.forEach(fn => fn(this.user, this.profile)); }
+  onChange(fn) { this._listeners.push(fn); }
+  _notify()    { this._listeners.forEach(fn => fn(this.profile)); }
 
-  get isLoggedIn() { return !!this.user; }
-  get displayName() { return this.profile?.username || this.user?.displayName || 'Guest'; }
-  get coins() { return this.profile?.coins ?? 500; }
-  get gems() { return this.profile?.gems ?? 10; }
+  get isLoggedIn()   { return !!this.token && !!this.profile; }
+  get displayName()  { return this.profile?.username || 'Guest'; }
+  get avatarUrl()    { return this.profile?.avatar_url || null; }
+  get coins()        { return this.profile?.coins  ?? 500; }
+  get gems()         { return this.profile?.gems   ?? 10; }
+  get ownedSkins()   { return this.profile?.skins  ?? []; }
 }
 
 export const authManager = new AuthManager();

@@ -3,7 +3,10 @@ const { Pool } = require('pg');
 let pool;
 
 async function connectDB() {
-  pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  });
   await pool.query('SELECT 1');
   console.log('PostgreSQL connected');
 }
@@ -11,15 +14,15 @@ async function connectDB() {
 const db = {
   query: (text, params) => pool.query(text, params),
 
-  async getUser(firebaseUid) {
-    const { rows } = await pool.query('SELECT * FROM users WHERE firebase_uid=$1', [firebaseUid]);
+  async getUser(uid) {
+    const { rows } = await pool.query('SELECT * FROM users WHERE github_uid=$1', [uid]);
     return rows[0] || null;
   },
 
-  async createUser(firebaseUid, username, avatarUrl) {
+  async createUser(uid, username, avatarUrl, email = null) {
     const { rows } = await pool.query(
-      'INSERT INTO users (firebase_uid, username, avatar_url) VALUES ($1,$2,$3) RETURNING *',
-      [firebaseUid, username, avatarUrl]
+      'INSERT INTO users (github_uid, username, avatar_url, email) VALUES ($1,$2,$3,$4) RETURNING *',
+      [uid, username, avatarUrl, email]
     );
     return rows[0];
   },
@@ -37,7 +40,7 @@ const db = {
   },
 
   async addCoins(userId, amount) {
-    await pool.query('UPDATE users SET coins=coins+$1 WHERE id=$2', [amount, userId]);
+    await pool.query('UPDATE users SET coins=GREATEST(0,coins+$1) WHERE id=$2', [amount, userId]);
   },
 
   async recordScore(userId, gameType, score) {
@@ -49,9 +52,9 @@ const db = {
 
   async getLeaderboard(gameType, limit = 20) {
     const { rows } = await pool.query(
-      `SELECT u.username, u.avatar_url, MAX(l.score) as best_score
-       FROM leaderboard l JOIN users u ON u.id=l.user_id
-       WHERE l.game_type=$1
+      `SELECT u.username, u.avatar_url, MAX(l.score) AS best_score
+       FROM leaderboard l JOIN users u ON u.id = l.user_id
+       WHERE l.game_type = $1
        GROUP BY u.id, u.username, u.avatar_url
        ORDER BY best_score DESC LIMIT $2`,
       [gameType, limit]

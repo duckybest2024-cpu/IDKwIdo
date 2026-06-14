@@ -1,18 +1,15 @@
-const express = require('express');
-const http    = require('http');
-const path    = require('path');
+const express    = require('express');
+const http       = require('http');
+const path       = require('path');
 const { Server } = require('socket.io');
-const { v4: uuid } = require('crypto');
 
 const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server);
 
-// Serve the whole game as static files
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// In-memory rooms (reset on server restart — fine for a party game)
 const rooms = new Map();
 
 io.on('connection', (socket) => {
@@ -27,9 +24,9 @@ io.on('connection', (socket) => {
 
   socket.on('join_room', ({ roomId, playerName, skinId }) => {
     const room = rooms.get(roomId);
-    if (!room)                             return socket.emit('error', { message: 'Room not found' });
+    if (!room)                                  return socket.emit('error', { message: 'Room not found' });
     if (room.players.length >= room.maxPlayers) return socket.emit('error', { message: 'Room full' });
-    if (room.state !== 'lobby')            return socket.emit('error', { message: 'Game already started' });
+    if (room.state !== 'lobby')                 return socket.emit('error', { message: 'Game already started' });
     const player = { id: socket.id, name: playerName || `Player ${room.players.length + 1}`, skinId: skinId || 'frog_green', ready: false };
     room.players.push(player);
     socket.join(roomId);
@@ -50,12 +47,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('game_input',  (input) => socket.to(socket.roomId).emit('player_input', { playerId: socket.id, input }));
-  socket.on('game_event',  (event) => { if (socket.roomId) io.to(socket.roomId).emit('game_event', event); });
-  socket.on('chat_message',({ message }) => {
+  socket.on('game_input',   (input)   => socket.to(socket.roomId).emit('player_input', { playerId: socket.id, input }));
+  socket.on('game_event',   (event)   => { if (socket.roomId) io.to(socket.roomId).emit('game_event', event); });
+  socket.on('chat_message', ({ message }) => {
     const room = rooms.get(socket.roomId);
-    const p = room?.players.find(p => p.id === socket.id);
-    io.to(socket.roomId).emit('chat_message', { sender: p?.name || '?', message: String(message).slice(0, 200) });
+    const p    = room?.players.find(p => p.id === socket.id);
+    io.to(socket.roomId)?.emit('chat_message', { sender: p?.name || '?', message: String(message).slice(0, 200) });
   });
 
   socket.on('disconnect', () => {
@@ -63,10 +60,11 @@ io.on('connection', (socket) => {
     if (!room) return;
     room.players = room.players.filter(p => p.id !== socket.id);
     if (room.players.length === 0) { rooms.delete(socket.roomId); return; }
-    if (room.host === socket.id) room.host = room.players[0].id;
+    if (room.host === socket.id)   room.host = room.players[0].id;
     io.to(socket.roomId).emit('room_updated', room);
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`234 Player Games running on :${PORT}`));
+// Railway networking is configured for port 8080
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => console.log(`234 Player Games running on port ${PORT}`));

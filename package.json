@@ -1,16 +1,12 @@
 {
-  "name": "234-player-games-mega",
+  "name": "234-player-games",
   "version": "1.0.0",
-  "description": "50 mini-games, 215 free skins, 1-6 players",
   "scripts": {
-    "build": "cd client && npm install && npm run build",
-    "start": "node server/index.js",
-    "install:server": "cd server && npm install",
-    "dev": "concurrently \"cd server && npm run dev\" \"cd client && npm run dev\"",
-    "dev:server": "cd server && npm run dev",
-    "dev:client": "cd client && npm run dev"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "dependencies": {
-    "concurrently": "^8.2.0"
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
   }
 }

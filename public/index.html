@@ -2,12 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>234 Player Games — Mega Edition</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { background:#1a0533; overflow:hidden; font-family:'Segoe UI',sans-serif; }
-    #game-container { width:100vw; height:100vh; }
+    html, body { width:100%; height:100%; background:#1a0533; overflow:hidden; }
+    #game-container {
+      width:100%;
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    /* Make Phaser canvas scale nicely */
+    canvas { display:block; }
   </style>
 </head>
 <body>

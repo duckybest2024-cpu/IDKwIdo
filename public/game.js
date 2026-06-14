@@ -1,5 +1,5 @@
 // ============================================================
-//  234 Player Games — Mega Edition
+//  234 Player Games — Mega Edition  v2
 //  No build step. Phaser + Socket.io from CDN.
 // ============================================================
 
@@ -122,6 +122,7 @@ class BootScene extends Phaser.Scene {
 class MainMenuScene extends Phaser.Scene {
   constructor(){ super('MainMenu'); }
   create(){
+    window.hideLoading?.();
     const W=1280,H=720;
     this.add.rectangle(0,0,W,H,0x1a0533).setOrigin(0);
     for(let i=0;i<80;i++){
@@ -344,7 +345,7 @@ class BattleRoyaleScene extends Phaser.Scene {
       if(Math.sqrt(dx*dx+dy*dy)>this.zR&&this.time.now%1000<20)this._hit(i);
     });
     this.zG.clear().lineStyle(3,0xe74c3c,0.8).strokeCircle(this.zX,this.zY,this.zR).fillStyle(0xe74c3c,0.05).fillCircle(this.zX,this.zY,this.zR+500);
-    this.hpT.forEach((t,i)=>t.setText(`P${i+1} ${'❤'.repeat(Math.max(0,this.hp[i]))}${'🖤'.repeat(Math.max(0,3-this.hp[i]))}}`));
+    this.hpT.forEach((t,i)=>t.setText(`P${i+1} ${'❤'.repeat(Math.max(0,this.hp[i]))}${'⬤'.repeat(Math.max(0,3-this.hp[i]))}`) );
     const alive=this.ps.filter(p=>p.getData('alive'));
     if(alive.length<=1&&!this.over){this.over=true;winScreen(this,alive[0]?`P${alive[0].getData('i')+1} WINS!`:'DRAW!');}
   }
@@ -405,7 +406,7 @@ class TankBattleScene extends Phaser.Scene {
   }
   update(_,dt){if(this.over)return;const sp=180,ts=100;this.tanks.forEach((t,i)=>{if(!t.getData('alive'))return;if(i===0){if(this.K.W?.isDown)t.setVelocity(Math.cos(t.rotation)*sp,Math.sin(t.rotation)*sp);else if(this.K.S?.isDown)t.setVelocity(-Math.cos(t.rotation)*sp,-Math.sin(t.rotation)*sp);else t.setVelocity(0,0);if(this.K.A?.isDown)t.setAngularVelocity(-ts);else if(this.K.D?.isDown)t.setAngularVelocity(ts);else t.setAngularVelocity(0);if(Phaser.Input.Keyboard.JustDown(this.K.F))this._fire(t,i);}else if(i===1){if(this.K.UP?.isDown)t.setVelocity(Math.cos(t.rotation)*sp,Math.sin(t.rotation)*sp);else if(this.K.DOWN?.isDown)t.setVelocity(-Math.cos(t.rotation)*sp,-Math.sin(t.rotation)*sp);else t.setVelocity(0,0);if(this.K.LEFT?.isDown)t.setAngularVelocity(-ts);else if(this.K.RIGHT?.isDown)t.setAngularVelocity(ts);else t.setAngularVelocity(0);if(Phaser.Input.Keyboard.JustDown(this.ENT))this._fire(t,i);}if(t.getData('cd')>0)t.setData('cd',t.getData('cd')-dt);});const alive=this.tanks.filter(t=>t.getData('alive'));if(alive.length<=1&&!this.over){this.over=true;winScreen(this,alive[0]?`P${alive[0].getData('i')+1} WINS!`:'DRAW!');}}
   _fire(t,o){if(t.getData('cd')>0)return;t.setData('cd',600);const a=t.rotation;const sh=this.shells.get(t.x+Math.cos(a)*38,t.y+Math.sin(a)*38,'shell');if(!sh)return;if(!sh.body)this.physics.add.existing(sh);sh.setActive(true).setVisible(true).setRotation(a).setData('o',o);sh.body.setVelocity(Math.cos(a)*560,Math.sin(a)*560);this.cameras.main.shake(55,0.004);this.time.delayedCall(2000,()=>{if(sh.active)sh.setActive(false).setVisible(false);});}
-  _hitT(i){this.hp[i]--;this.tweens.add({targets:this.tanks[i],alpha:0.2,duration:80,yoyo:true,repeat:3});this.hpT[i].setText(`P${i+1} ${'❤'.repeat(Math.max(0,this.hp[i]))}${'🖤'.repeat(3-Math.max(0,this.hp[i]))}`);if(this.hp[i]<=0)this.tanks[i].setData('alive',false).setActive(false).setVisible(false);}
+  _hitT(i){this.hp[i]--;this.tweens.add({targets:this.tanks[i],alpha:0.2,duration:80,yoyo:true,repeat:3});this.hpT[i].setText(`P${i+1} ${'❤'.repeat(Math.max(0,this.hp[i]))}${'⬤'.repeat(3-Math.max(0,this.hp[i]))}`);if(this.hp[i]<=0)this.tanks[i].setData('alive',false).setActive(false).setVisible(false);}
 }
 
 // ==================  BOMB GAME  ==================
@@ -460,18 +461,21 @@ class PlatformerRaceScene extends Phaser.Scene {
 }
 
 // ==================  START  ==================
-new Phaser.Game({
-  type: Phaser.AUTO,
-  width: 1280,
-  height: 720,
-  parent: 'game-container',
-  backgroundColor: '#1a0533',
-  // Scale to fit ANY screen size — phone, tablet, desktop
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-  },
-  physics: { default:'arcade', arcade:{ gravity:{y:0}, debug:false } },
-  scene: [BootScene, MainMenuScene, SkinSelectScene, GameSelectScene, LobbyScene,
-          BattleRoyaleScene, SoccerScene, TankBattleScene, BombGameScene, PlatformerRaceScene],
-});
+try {
+  new Phaser.Game({
+    type: Phaser.AUTO,
+    width: 1280,
+    height: 720,
+    parent: 'game-container',
+    backgroundColor: '#1a0533',
+    scale: {
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+    },
+    physics: { default:'arcade', arcade:{ gravity:{y:0}, debug:false } },
+    scene: [BootScene, MainMenuScene, SkinSelectScene, GameSelectScene, LobbyScene,
+            BattleRoyaleScene, SoccerScene, TankBattleScene, BombGameScene, PlatformerRaceScene],
+  });
+} catch(e) {
+  window.showErr?.('Game init failed: ' + (e?.message || String(e)));
+}
